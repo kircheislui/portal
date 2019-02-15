@@ -31,6 +31,7 @@ variables
       - test1
       - test2
       - apache
+```
 
 # variable for aws_configuration.yml
 
