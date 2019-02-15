@@ -1,0 +1,180 @@
+- name: Create a VM from a template
+  hosts: all
+  tasks:
+  - name: block
+    block:
+      - name: Get Data Store Facts
+        vmware_datastore_facts:
+          hostname: "{{ lookup('env', 'VMWARE_HOST') }}"
+          username: "{{ lookup('env', 'VMWARE_USER') }}"
+          password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+          datacenter: Private Cloud
+          cluster: "{{ldap_group}}"
+          validate_certs: no
+        register: facts
+        tags: test
+
+#      - name: Get capability facts about all ESXI Facts
+#        vmware_host_facts:
+#          hostname: "{{ lookup('env', 'VMWARE_HOST') }}"
+#          username: "{{ lookup('env', 'VMWARE_USER') }}"
+#          password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+#          validate_certs: no
+#        register: facts_hosts
+#        tags: test_facts_hosts
+#
+#      - name: shell out the facts_hosts
+#        shell : echo {{facts_hosts}} >> /tmp/hosts_{{app_code}}.log
+#        tags: test_facts_hosts
+#
+#      - name: debug
+#        debug:
+#          var: facts_hosts|json
+#        tags: test_facts_hosts
+
+#      - name: Get capability facts about all ESXI Facts
+#        vmware_host_capability_facts:
+#          hostname: "{{ lookup('env', 'VMWARE_HOST') }}"
+#          username: "{{ lookup('env', 'VMWARE_USER') }}"
+#          password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+#          cluster_name: CORE
+#          validate_certs: no
+#        register: facts_hosts2
+#        tags: test_facts_hosts2
+#      
+#      - name: shell out the facts_hosts
+#        shell : echo {{facts_hosts}} >> /tmp/hosts_{{app_code}}.log
+#        tags: test_facts_hosts2
+#      
+#      - name: debug
+#        debug:
+#          var: facts_hostss
+#        tags: test_facts_hosts2
+      
+
+      - name: Create VM Task
+        vmware_guest:
+          hostname: "{{ lookup('env', 'VMWARE_HOST') }}"
+          username: "{{ lookup('env', 'VMWARE_USER') }}"
+          password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+          validate_certs: no
+          folder: /Ansible
+          name: "{{app_code}}" 
+          state: poweredon
+          template: RH74_x64_2018Q1_hardening
+          datacenter: Private Cloud
+          cluster: "{{ldap_group}}"
+          disk:
+          - size_gb: 60
+            type: thin
+            datastore: "{{(facts.datastores|sort(attribute='freeSpace',reverse=True))[0].name}}"
+          networks:
+          - name: 'dvPG_Cloud-DMZ (10.31.144.0%2f22_VLAN522)'
+            ip: "{{ip_add}}"
+            gateway: 10.31.144.1
+            netmask: 255.255.252.0
+            type: static
+          customization:
+            hostname: "{{app_code}}"
+        register: deploy
+        tags: test
+    
+      - name: debug
+        debug:
+          var: deploy
+
+      - name: add host to inventory
+        add_host:
+          name: "{{ip_add}}"
+          groups: web
+          ansible_user: ansible
+
+      - name: check if vm is ready
+        wait_for:
+          host: "{{ip_add}}"
+          port: 22
+          timeout: 180
+        register: is_linux
+
+    rescue:
+      - name: Rescue send email notification
+        uri:
+          url: http://dpcphklocp01/cloud/portal/cf_result.jsp?requestID={{Provision_Request_ID}}&status=reject
+
+- name: Config VM
+  hosts: web
+  gather_facts: no
+  tasks:
+  - name: block
+    block:
+
+      - name: check if linux host ready login
+        ping:
+        when: hostvars['dpcphklant01']['is_linux'].state == "started"
+        register: linux_ready
+
+      - name: create document root path
+        file:
+          path: "{{document_root_path}}"
+          state: directory
+          recurse: yes
+        register: root_path
+        when:
+          - document_root_path != ''
+    
+      - name: run cloud_install_ihs9.sh script files in remote hosts
+        script: cloud_install_ihs9.sh {{app_code}}.bocgroup.com
+#        when: 
+#          - software == "ihs_v90"
+        register: ihs90
+
+      - name: run cloud_install_ihs85.sh script files in remote hosts
+        script: cloud_install_ihs85.sh {{app_code}}.bocgroup.com
+        when:
+          - software == "ihs_v85"
+        register: ihs85
+
+      - name: generate password
+        set_fact:
+          gen_password: "{{ lookup('password', '/dev/null length=8  chars=digits,ascii_letters') }}"
+
+      - name: debug password
+        debug:
+          msg: "{{gen_password}}"
+
+      - name: change password
+        user:
+          name: admin
+          update_password: always
+          password: "{{gen_password|password_hash('sha512')}}"
+        register: gepassword
+
+      - name: run start_IHS.sh to start service
+        shell: /zsmd/scripts/start_IHS.sh
+        register: start_IHS
+        when: 
+          - ihs90.rc is defined or ihs85.rc is defined
+
+      - set_fact:
+          status: success
+        when:
+          - hostvars['dpcphklant01']['deploy'].changed == true
+          - root_path.failed is undefined or root_path.failed == false
+          - ihs90.rc is undefined or ihs90.rc == 0
+          - ihs85.rc is undefined or ihs85.rc == 0
+          - start_IHS.rc is undefined or start_IHS.rc == 0
+          - gepassword.failed == false
+
+      - name: Send email notification
+        uri:
+          url: http://dpcphklocp01/cloud/portal/cf_result.jsp?requestID={{Provision_Request_ID}}&status={{status}}&ip={{ip_add}}&hostname={{app_code}}&login_name=admin&login_pw={{gen_password}}
+        delegate_to: localhost
+        become: no
+        register: check_uri
+
+    rescue:
+      - name: Rescue send email notification
+        uri:
+          url: http://dpcphklocp01/cloud/portal/cf_result.jsp?requestID={{Provision_Request_ID}}&status=reject
+        delegate_to: localhost
+        become: no

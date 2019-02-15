@@ -1,0 +1,118 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: yes
+  vars:
+    instance_type: t2.micro
+    security_group: launch_wizard-6
+    image: ami-036affea69a1101c9
+    keypair: ansible
+    region: us-west-2
+    count: 1
+    aws_pem: aws/aws_ansible.pem
+
+#    instance_tags_Name: redhat03
+    instance_tags_Type: webserver
+
+  vars_files:
+    - aws/aws_keys.yml
+
+  tasks:
+    - block:
+
+      - name: Gather facts for target group
+        ec2_instance_facts:
+          aws_access_key: "{{ aws_access_key }}"
+          aws_secret_key: "{{ aws_secret_key }}"
+          region: "{{ region }}"
+          filters:
+            "tag:Type": "{{ instance_tags_Type }}"
+        register: ec2_group_facts
+
+      - name: Add the existing host so that we can further contact it
+        add_host:
+          name: "{{ item.public_ip_address }}"
+          groups: "{{ instance_tags_Type }}"
+          ansible_ssh_private_key_file: "{{ aws_pem }}"
+        with_items: "{{ ec2_group_facts.instances }}"
+        when: item.state.name == "running"
+    
+      - name: Wait for SSH to come up
+        wait_for:
+          host: "{{ item.public_ip_address }}"
+          port: 22
+          state: started
+        with_items: "{{ ec2_group_facts.instances }}"
+        when: item.state.name == "running"
+
+      - set_fact:
+          hosts_name: "{{ instance_tags_Type }}" 
+
+      when: instance_tags_Type is defined
+      
+      rescue:
+        - include_role:
+            name: fail_notification
+
+    - block:
+
+      - name: Gather facts for target instance
+        ec2_instance_facts:
+          aws_access_key: "{{ aws_access_key }}"
+          aws_secret_key: "{{ aws_secret_key }}"
+          region: "{{ region }}"
+          filters:
+            "tag:Name": "{{ instance_tags_Name }}"
+        register: ec2_instance_facts
+
+      - name: Add the existing host so that we can further contact it
+        add_host:
+          name: "{{ item.public_ip_address }}"
+          groups: "{{ instance_tags_Name }}"
+          ansible_ssh_private_key_file: "{{ aws_pem }}"
+        with_items: "{{ ec2_instance_facts.instances }}"
+        when: item.state.name == "running"
+    
+      - name: Wait for SSH to come up
+        wait_for:
+          host: "{{ item.public_ip_address }}"
+          port: 22
+          state: started
+        with_items: "{{ ec2_instance_facts.instances }}"
+        when: item.state.name == "running"
+
+      - set_fact:
+          hosts_name: "{{ instance_tags_Name }}" 
+
+      when: instance_tags_Name is defined
+      
+      rescue:
+        - include_role:
+            name: fail_notification
+
+
+- hosts: "{{ hostvars['localhost']['hosts_name'] }}"
+  remote_user: ec2-user
+  become: yes
+  gather_facts: yes
+  vars:
+    install_services:
+      - hostname
+      - apache
+    
+  tasks:
+      
+    - block:
+
+        - include_role:
+            name: "{{ item }}"
+          with_items:
+            - "{{ install_services }}"
+
+        - include_role:
+            name: success_notification
+
+      rescue:
+        - include_role:
+            name: fail_notification
+

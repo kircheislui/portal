@@ -1,0 +1,176 @@
+- name: Create a VM from a template
+  hosts: all 
+  tasks:
+    - name: block 
+      block:
+        - name: Get Data Store Facts
+          vmware_datastore_facts:
+            hostname: "{{ lookup('env', 'VMWARE_HOST') }}"
+            username: "{{ lookup('env', 'VMWARE_USER') }}"
+            password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+            datacenter: Private Cloud
+            cluster: "{{ldap_group}}"
+            validate_certs: no
+          register: facts
+          tags: test
+  
+        - name: Create VM Task
+          vmware_guest:
+            hostname: "{{ lookup('env', 'VMWARE_HOST') }}"
+            username: "{{ lookup('env', 'VMWARE_USER') }}"
+            password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+            validate_certs: no
+            folder: /Ansible
+            name: "{{app_code}}" 
+            state: poweredon
+            template: RH74_x64_2018Q1_hardening
+            datacenter: Private Cloud
+            cluster: "{{ldap_group}}"
+            disk:
+            - size_gb: 60
+              type: thin
+              datastore: "{{(facts.datastores|sort(attribute='freeSpace',reverse=True))[0].name}}"
+            - size_gb: "{{ app_storage|int }}"
+              type: thin
+              datastore: "{{(facts.datastores|sort(attribute='freeSpace',reverse=True))[0].name}}" 
+            hardware:
+              memory_mb: "{{app_cpu.split(',')[1]}}"
+              num_cpus: "{{app_cpu.split(',')[0]}}"
+            networks:
+            - name: 'dvPG_Cloud-DMZ (10.31.144.0%2f22_VLAN522)'
+              ip: "{{ip_add}}"
+              gateway: 10.31.144.1
+              netmask: 255.255.252.0
+              type: static
+            customization:
+              hostname: "{{app_code}}"
+          register: deploy
+          tags: test
+  
+        - name: debug
+          debug:
+            var: deploy
+  
+        - name: add host to inventory
+          add_host:
+            name: "{{ip_add}}"
+            groups: app
+            ansible_user: ansible
+          tags: test
+  
+        - name: check if vm is ready
+          wait_for:
+            host: "{{ip_add}}"
+            port: 22
+            timeout: 180
+          register: is_linux
+
+      rescue:
+        - include_role:
+            name: fail_notification
+
+- name: Config VM
+  hosts: app
+  gather_facts: no
+  tasks:
+    - name: block
+      block:
+      
+        - name: check if linux host ready login
+          ping:
+          when: hostvars['dpcphklant01']['is_linux'].state == "started"
+          register: linux_ready
+  
+        - name: create filesystem
+          parted:
+            device: /dev/sdb
+            number: 1
+            flags: [ lvm ]
+            state: present
+  
+        - name: Partition additional disk
+          filesystem:
+            fstype: xfs
+            dev: /dev/sdb1
+          register: partition
+  
+        - name: Ensure the directory for additional disk exists
+          file:
+            path: /test
+            state: directory
+            recurse: yes
+  
+        - name: mount the additional disk
+          mount:
+            path: /test
+            src: /dev/sdb1
+            fstype: xfs
+            state: mounted 
+          register: mount
+      
+        - name: run cloud_install_was9.sh script files in remote hosts
+          script: cloud_install_was9.sh
+          register: was90
+          when:
+            - software == "was_v90"
+  
+        - name: run cloud_install_was85.sh script files in remote hosts
+          script: cloud_install_was85.sh
+          register: was85
+          when:
+            - software == "was_v85"
+  
+        - name: install MQ8
+          shell: /mnt/MQ8/install.sh
+          args:
+            chdir: /mnt/MQ8/
+          register: mq8
+          when:
+            - websphere_mq == 't'
+  
+        - name: umount /mnt
+          mount:
+            path: /mnt 
+            state: unmounted
+  
+        - name: generate password
+          set_fact:
+            gen_password: "{{ lookup('password', '/dev/null length=8  chars=digits,ascii_letters') }}"
+      
+        - name: debug password
+          debug:
+            msg: "{{gen_password}}"
+      
+        - name: change password
+          user: 
+            name: admin
+            update_password: always
+            password: "{{gen_password|password_hash('sha512')}}"
+          register: gepassword
+  
+        - name: run start_WAS.sh to start service
+          shell: /zsmd/scripts/start_WAS.sh
+          register: start_WAS
+          when:
+            - was85.rc is defined or was90.rc is defined
+  
+        - set_fact:
+            status: success
+          when:
+            - hostvars['dpcphklant01']['deploy'].changed == true
+            - partition.failed == false
+            - mount.failed == false
+            - was90.rc is undefined or was90.rc == 0
+            - was85.rc is undefined or was85.rc == 0
+            - start_WAS.rc is undefined or start_WAS.rc == 0
+            - mq8.failed is undefined or mq8.failed == false
+            - gepassword.failed == false
+          register: success
+
+        - include_role:
+            name: success_notification
+  
+      rescue:
+        - include_role:
+            name: fail_notification
+
