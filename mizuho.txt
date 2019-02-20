@@ -1,0 +1,13 @@
+I have just found another command for puppet agent installation as below. Will put in to ansible to test it.
+
+ 
+
+From
+
+[Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; $webClient = New-Object System.Net.WebClient; $webClient.DownloadFile('https://hklxinpped01v.hkg.mizuho-sc.com:8140/packages/current/install.ps1', 'install.ps1'); .\install.ps1
+
+ 
+
+To
+
+[Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; $webClient = New-Object System.Net.WebClient; $webClient.DownloadFile('https://hklxinpped01v.hkg.mizuho-sc.com:8140/packages/current/install.ps1', 'install.ps1'); start-process powershell -argument "{Install.ps1 path}" -Verb -runAs
