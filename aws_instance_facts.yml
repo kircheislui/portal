@@ -29,6 +29,14 @@
 #            "tag:Type": "{{ instance_tags_Type }}"
         register: ec2_group_facts
 
-      - debug:
-          msg: "{{ ec2_group_facts | json_query('instances[*].{Name: tags.Name, Status: state.name, IP: private_ip_address}') | join(', ') }}"
+#      - debug:
+#          msg: "{{ ec2_group_facts | json_query('instances[*].{Name: tags.Name, Status: state.name, IP: private_ip_address}') | join(', ') }}"
 
+      - name: POST contents
+        uri:
+          url: <<>>
+          method: POST
+          force_basic_auth: yes
+          status_code: 201
+          body: "{{ ec2_group_facts | json_query('instances[*].{Name: tags.Name, Status: state.name, IP: private_ip_address}') | join(', ') }}"
+          body_format: json

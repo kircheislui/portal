@@ -1,0 +1,41 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: no
+  vars:
+    region: us-west-2
+
+    state: stopped
+    instance_tags_Name: EVORI
+#    instance_tags_Type: webserver
+
+  vars_files:
+    - aws/aws_keys.yml
+
+  tasks:
+    - block:
+
+      - name: Change the goal state of instance
+        ec2_instance:
+          aws_access_key: "{{ aws_access_key }}"
+          aws_secret_key: "{{ aws_secret_key }}"
+          region: "{{ region }}"
+          state: "{{ state }}"
+          filters:
+            "tag:Type": "{{ instance_tags_Type }}"
+
+      when: instance_tags_Type is defined
+
+    - block:
+
+      - name: Change the goal state of instance
+        ec2_instance:
+          aws_access_key: "{{ aws_access_key }}"
+          aws_secret_key: "{{ aws_secret_key }}"
+          region: "{{ region }}"
+          state: "{{ state }}"
+          filters:
+            "tag:Name": "{{ instance_tags_Name }}"
+
+      when: instance_tags_Name is defined
+
