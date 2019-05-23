@@ -1,0 +1,41 @@
+- hosts: all
+  tasks:
+
+    - name: Get capability facts about all ESXI Facts
+      vmware_host_facts:
+        hostname: "{{ lookup('env', 'VMWARE_HOST') }}"
+        username: "{{ lookup('env', 'VMWARE_USER') }}"
+        password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+        validate_certs: no
+      register: facts_hosts
+      tags: test_facts_hosts
+
+    - debug:
+        var: facts_hosts
+
+#    - name: POST
+#      uri:
+#        url:  https://10.33.106.178/rest/com/vmware/cis/session
+#        method: POST
+#        user: "{{ lookup('env', 'VMWARE_USER') }}"
+#        password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+#        force_basic_auth: yes
+#        validate_certs: no
+#      register: vcenter_cluster
+
+#    - debug:
+#        var: vcenter_cluster
+
+    - name: GET
+      uri:
+        url:  https://10.33.106.178/rest/vcenter/vm
+        method: GET
+        user: "{{ lookup('env', 'VMWARE_USER') }}"
+        password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+        force_basic_auth: yes
+        validate_certs: no
+      register: vcenter_cluster_get
+
+    - debug:
+        var: vcenter_cluster_get
+

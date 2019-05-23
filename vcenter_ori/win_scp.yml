@@ -1,0 +1,5 @@
+- hosts: all
+  tasks: 
+    - win_copy:
+        src: files/WinSCP-5.13-Portable.zip
+        dest: C:\\Temp\\ansible\

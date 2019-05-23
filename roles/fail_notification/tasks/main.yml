@@ -1,0 +1,6 @@
+- name: Rescue send email notification
+  uri:
+    url: http://dpcphklocp01/cloud/portal/cf_result.jsp?requestID={{Provision_Request_ID}}&status=reject
+  become: no
+  delegate_to: localhost
+

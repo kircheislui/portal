@@ -1,0 +1,115 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: False
+  vars:
+    instance_type: t2.micro
+    security_group: launch_wizard-6
+    image: ami-036affea69a1101c9
+    keypair: ansible
+    region: us-west-2
+    count: 1
+    aws_pem: aws/aws_ansible.pem
+    ec2_group_rules:
+      - proto: tcp
+        from_port: 22
+        to_port: 22
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 80
+        to_port: 80
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 443
+        to_port: 443
+        cidr_ip: 0.0.0.0/0
+    group_name: webserver
+    instance_tags_Name: redhat01
+
+  vars_files:
+    - aws/aws_keys.yml
+
+  tasks:
+    - block:
+      - name: Create a security group
+        ec2_group:
+          name: "{{ security_group }}"
+          description: The webservers security group
+          region: "{{ region }}"
+          aws_access_key: "{{ aws_access_key }}"
+          aws_secret_key: "{{ aws_secret_key }}"
+          rules:
+            "{{ec2_group_rules}}"
+          rules_egress:
+            - proto: all
+              cidr_ip: 0.0.0.0/0
+  
+      - name: Launch the new EC2 Instance
+        ec2:
+          aws_access_key: "{{ aws_access_key }}"
+          aws_secret_key: "{{ aws_secret_key }}"
+          group: "{{ security_group }}"
+          instance_tags:
+            Name: "{{instance_tags_Name}}"
+          instance_type: "{{ instance_type }}"
+          image: "{{ image }}"
+          wait: true
+          region: "{{ region }}"
+          keypair: "{{ keypair }}"
+          count: "{{count}}"
+        register: ec2
+
+      - name: Add the newly created host so that we can further contact it
+        add_host:
+          name: "{{ item.public_ip }}"
+          groups: "{{group_name}}"
+          ansible_ssh_private_key_file: "{{aws_pem}}"
+        with_items: "{{ ec2.instances }}"
+    
+      - name: Add tag to Instance(s)
+        ec2_tag:
+          aws_access_key: "{{ aws_access_key }}"
+          aws_secret_key: "{{ aws_secret_key }}"
+          resource: "{{ item.id }}"
+          region: "{{ region }}"
+          state: "present"
+        with_items: "{{ ec2.instances }}"
+        args:
+          tags:
+            Type: "{{group_name}}"
+    
+      - name: Wait for SSH to come up
+        wait_for:
+          host: "{{ item.public_ip }}"
+          port: 22
+          state: started
+        with_items: "{{ ec2.instances }}"
+
+      rescue:
+        - include_role:
+            name: fail_notification
+
+- hosts: "{{group_name}}"
+  remote_user: ec2-user
+  become: yes
+  gather_facts: no
+  vars:  
+    install_services:
+      - test1
+      - test2
+      - apache
+  tasks:
+      
+    - block:
+        - include_role:
+            name: "{{item}}"
+          with_items:
+            - "{{install_services}}"
+
+        - include_role:
+            name: success_notification
+
+      rescue:
+        - include_role:
+            name: fail_notification
+

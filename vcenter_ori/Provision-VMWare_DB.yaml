@@ -1,0 +1,116 @@
+- name: Create a VM from a template
+  hosts: all
+  tasks:
+  - name: block
+    block:
+      - name: Get Data Store Facts
+        vmware_datastore_facts:
+          hostname: "{{ lookup('env', 'VMWARE_HOST') }}"
+          username: "{{ lookup('env', 'VMWARE_USER') }}"
+          password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+          datacenter: Private Cloud
+          cluster: "{{ldap_group}}"
+          validate_certs: no
+        register: facts
+        tags: test
+
+      - name: Create VM Task
+        vmware_guest:
+          hostname: "{{ lookup('env', 'VMWARE_HOST') }}"
+          username: "{{ lookup('env', 'VMWARE_USER') }}"
+          password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+          validate_certs: no
+          folder: /Ansible
+          name: "{{app_code}}"
+          state: poweredon
+          template: RH74_x64_2018Q1_hardening
+          datacenter: Private Cloud
+          cluster: "{{ldap_group}}"
+          disk:
+          - size_gb: 60
+            type: thin
+            datastore: "{{(facts.datastores|sort(attribute='freeSpace',reverse=True))[0].name}}"
+          - size_gb: "{{ app_storage|int }}"
+            type: thin
+            datastore: "{{(facts.datastores|sort(attribute='freeSpace',reverse=True))[0].name}}"
+          hardware:
+            memory_mb: "{{app_cpu.split(',')[1]}}"
+            num_cpus: "{{app_cpu.split(',')[0]}}"
+          networks:
+          - name: 'dvPG_Cloud-DMZ (10.31.144.0%2f22_VLAN522)'
+            ip: "{{ip_add}}"
+            gateway: 10.31.144.1
+            netmask: 255.255.252.0
+            type: static
+          customization:
+            hostname: "{{app_code}}"
+        register: deploy
+        tags: test
+
+      - name: debug
+        debug:
+          var: deploy
+
+      - name: add host to inventory
+        add_host:
+          name: "{{ip_add}}"
+          groups: db
+          ansible_user: ansible
+        tags: test
+
+      - name: check if vm is ready
+        wait_for:
+          host: "{{ip_add}}"
+          port: 22
+          timeout: 180
+        register: is_linux
+
+    rescue:
+      - name: Rescue send email notification
+        uri:
+          url: http://dpcphklocp01/cloud/portal/cf_result.jsp?requestID={{Provision_Request_ID}}&status=reject
+
+- name: Config VM
+  hosts: db
+  gather_facts: no
+  tasks:
+  - name: block
+    block:
+
+
+
+
+      - name: determine port number
+        shell: netstat -lntpu |grep LISTEN | grep nginx |awk '{print $4}' |cut -d ":" -f2 | grep -v -e '^$' |sort -n |tail -1
+        register: port
+
+      - debug:
+          var: port.stdout|int+1   
+    
+      - name: run script files in remote hosts
+        script: files/backup/test.sh
+        register: DB_script
+    
+      - set_fact:
+          status: success
+        when:
+          - DB_script.rc == 0
+    
+      - set_fact:
+          status: reject
+        when:
+          - DB_script.rc != 0
+
+      - name: debug get file content
+        debug:
+          msg: http://dpcphklocp01/cloud/portal/cf_db_result.jsp?requestID={{lookup('file', 'files/db_results').split(',')[3]}}&status={{lookup('file', 'files/db_results').split(',')[4]}}&connection_string={{lookup('file', 'files/db_results').split(',')[0]}}&login_name={{lookup('file', 'files/db_results').split(',')[1]}}&login_pw={{lookup('file', 'files/db_results').split(',')[2]}}
+
+#      - name: Send email notification
+#        uri:
+#          url: http://dpcphklocp01/cloud/portal/cf_db_result.jsp?requestID={{lookup('file', 'files/db_results').split(',')[3]}}&status={{lookup('file', 'files/db_results').split(',')[4]}}&connection_string={{lookup('file', 'files/db_results').split(',')[0]}}&login_name={{lookup('file', 'files/db_results').split(',')[1]}}&login_pw={{lookup('file', 'files/db_results').split(',')[2]}}
+#        register: check_uri
+#
+#    rescue:
+#      - name: Rescue send email notification
+#        uri:
+#          url: http://dpcphklocp01/cloud/portal/cf_result.jsp?requestID={{Provision_Request_ID}}&status=reject

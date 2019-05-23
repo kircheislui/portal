@@ -1,0 +1,17 @@
+- name: Generate crypted passwords for the user module
+  debug:
+    msg: "{{ item | password_hash('sha512', 'mysecretsalt') }}"
+  with_items:
+    - mypassword
+    - mypassword2
+  register: crypted_password
+
+- debug:
+    msg: "{{ item.msg }}"
+  with_items:
+    - "{{ crypted_password.results }}"
+
+#- name: Add user
+#  user:
+    
+

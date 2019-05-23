@@ -1,0 +1,2 @@
+[PRI]
+192.168.122.71 ansible_user=ansstep ansible_password=password

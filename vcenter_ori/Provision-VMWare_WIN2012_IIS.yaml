@@ -1,0 +1,128 @@
+- name: Create a VM from a template
+  hosts: localhost
+  connection: local
+  tasks:
+  - name: block
+    block:
+
+      - name: Get Data Store Facts
+        vmware_datastore_facts:
+          hostname: "{{ lookup('env', 'VMWARE_HOST') }}"
+          username: "{{ lookup('env', 'VMWARE_USER') }}"
+          password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+          datacenter: Private Cloud
+          cluster: "{{ldap_group}}"
+          validate_certs: no
+        register: facts
+        tags: test
+
+      - name: Create VM Task
+        vmware_guest:
+          hostname: "{{ lookup('env', 'VMWARE_HOST') }}"
+          username: "{{ lookup('env', 'VMWARE_USER') }}"
+          password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+          validate_certs: no
+          folder: /Ansible
+          name: "{{app_code}}" 
+          state: poweredon
+          template: 'TEMPLATE_WIN2012R2 (With Hardening) _2018_Q1_v2_redhat'
+          datacenter: Private Cloud
+          cluster: "{{ldap_group}}"
+          disk:
+          - size_gb: 80
+            type: thin
+            datastore: "{{(facts.datastores|sort(attribute='freeSpace',reverse=True))[0].name}}"
+          - size_gb: 20
+            type: thin
+            datastore: "{{(facts.datastores|sort(attribute='freeSpace',reverse=True))[0].name}}"
+          networks:
+          - name: 'dvPG_Cloud-DMZ (10.31.144.0%2f22_VLAN522)'
+            ip: "{{ip_add}}"
+            gateway: 10.31.144.1
+            netmask: 255.255.252.0
+            type: static
+        register: deploy
+        tags: test
+    
+      - name: debug
+        debug:
+          var: deploy
+    
+      - name: add host to inventory
+        add_host:
+          name: "{{ip_add}}"
+          groups: windows
+          ansible_user: ansible
+          ansible_port: 5985
+          ansible_winrm_transport: basic
+          ansible_winrm_scheme: http
+          ansible_winrm_server_cert_validation: ignore
+          ansible_connection: winrm
+
+      - name: check if vm is ready
+        wait_for:
+          host: "{{ip_add}}"
+          port: 5985
+          timeout: 600
+        register: is_windows
+
+    rescue:
+      - name: Rescue send email notification
+        uri:
+          url: http://dpcphklocp01/cloud/portal/cf_result.jsp?requestID={{Provision_Request_ID}}&status=reject
+
+
+- name: Config VM
+  hosts: windows
+  gather_facts: no
+  tasks:
+  - name: block
+    block:
+
+      - name: check if windows host ready login
+        win_ping:
+        when: hostvars['localhost']['is_windows'].state == "started"
+        register: windows_ready
+
+      - name: create a folder
+        win_file:
+          path: "{{document_root_path}}"
+          state: directory
+          recurse: yes
+        register: root_path
+        when: 
+          - document_root_path != ''
+
+      - name: initial_disk
+        win_shell: C:\Repository\script\initial_disk.vbs
+        args:
+          chdir: C:\Repository\script
+        register: initial_disk
+
+      - name: Install IIS
+        win_shell: C:\Repository\script\Install_IIS.vbs
+        args:
+          chdir: C:\Repository\script
+        register: install_IIS
+
+      - set_fact:
+          status: success
+        when:
+          - hostvars['localhost']['deploy'].changed == true
+          - root_path.failed is undefined or root_path.failed == false
+          - initial_disk.rc == 0
+          - install_IIS.rc == 0
+
+      - name: Send email notification
+        uri:
+          url: http://dpcphklocp01/cloud/portal/cf_result.jsp?requestID={{Provision_Request_ID}}&status={{status}}&ip={{ip_add}}&hostname={{app_code}}
+        delegate_to: localhost
+        become: no
+        register: check_uri
+
+    rescue:
+      - name: Rescue send email notification
+        uri:
+          url: http://dpcphklocp01/cloud/portal/cf_result.jsp?requestID={{Provision_Request_ID}}&status=reject
+        delegate_to: localhost
+        become: no

@@ -1,0 +1,21 @@
+- name: Retire a VM 
+  hosts: all
+  tasks:
+
+  - name: Retire VM Task
+    vmware_guest:
+      hostname: "{{ lookup('env', 'VMWARE_HOST') }}"
+      username: "{{ lookup('env', 'VMWARE_USER') }}"
+      password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+      validate_certs: no
+#      folder: /ansible
+      name: "{{app_code}}" 
+      state: absent
+      force: yes
+    delegate_to: localhost
+    register: deploy
+
+  - name: Callback oneclickportal
+    uri:
+      url: http://10.33.106.174/cloud/portal/release_ip.jsp?app_code={{app_code}}
+    register: callback_uri

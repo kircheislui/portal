@@ -1,0 +1,28 @@
+- hosts: all
+  tasks:
+  - name: block
+    block:
+      - name: Get vcenter query result
+        vmware_host_facts:
+          hostname: "{{vm_hostnames_ip}}"
+          username: "{{ lookup('env', 'VMWARE_USER') }}"
+          password: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+          validate_certs: no
+        register: facts_hosts
+        tags: test
+  
+      - debug:
+          msg: "{{facts_hosts.ansible_facts}}"
+        tags: test
+  
+      - name: Send vcenter query result
+        uri:
+          url: http://dpcphklocp01/cloud/portal/ansible_vcenter_query_result.jsp?status=success&ip={{vm_hostnames_ip}}&vcenter_result={{facts_hosts.ansible_facts}}
+        register: check_uri
+  
+  
+    rescue:
+      - name: Rescue send email notification
+        uri:
+          url: http://dpcphklocp01/cloud/portal/ansible_vcenter_query_result.jsp?status=reject
+
