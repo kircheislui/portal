@@ -1,17 +1,9 @@
-<<<<<<< HEAD
 - hosts: localhost
-=======
-- hosts: local
->>>>>>> 3f966b7faf427ebb6c10a699ce85aba9eb0b2ddc
   connection: local
   vars:
     region: us-west-2
   vars_files:
-<<<<<<< HEAD
     - aws/aws_keys.yml
-=======
-    - aws_keys.yml
->>>>>>> 3f966b7faf427ebb6c10a699ce85aba9eb0b2ddc
   tasks:
     - name: Gather EC2 facts
       ec2_instance_facts:
