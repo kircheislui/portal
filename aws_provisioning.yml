@@ -25,6 +25,13 @@
         cidr_ip: 0.0.0.0/0
     group_name: webserver
     instance_tags_Name: redhat01
+<<<<<<< HEAD
+=======
+    install_services:
+      - test1
+      - test2
+      - apache
+>>>>>>> 3f966b7faf427ebb6c10a699ce85aba9eb0b2ddc
 
   vars_files:
     - aws/aws_keys.yml
@@ -93,11 +100,15 @@
   remote_user: ec2-user
   become: yes
   gather_facts: no
+<<<<<<< HEAD
   vars:  
     install_services:
       - test1
       - test2
       - apache
+=======
+    
+>>>>>>> 3f966b7faf427ebb6c10a699ce85aba9eb0b2ddc
   tasks:
       
     - block:
