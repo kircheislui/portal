@@ -3,17 +3,7 @@
   connection: local
   gather_facts: no
   vars:
-#    instance_type: t2.micro
-#    security_group: launch_wizard-6
-#    image: ami-036affea69a1101c9
-#    keypair: ansible
     region: us-west-2
-#    count: 1
-#    aws_pem: aws/aws_ansible.pem
-
-#    instance_tags_Name: redhat03
-    instance_tags_Type: webserver
-
   vars_files:
     - aws/aws_keys.yml
 
@@ -25,8 +15,6 @@
           aws_access_key: "{{ aws_access_key }}"
           aws_secret_key: "{{ aws_secret_key }}"
           region: "{{ region }}"
-#          filters:
-#            "tag:Type": "{{ instance_tags_Type }}"
         register: ec2_group_facts
 
 #      - debug:

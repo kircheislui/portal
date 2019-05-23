@@ -53,3 +53,31 @@ variables
   - apache
 
 ```
+
+# variable for aws_instance_goal_state.yml
+
+```
+
+  vars:
+    region: us-west-2
+  vars_files:
+    - aws/aws_keys.yml
+
+```
+
+# variable for aws_instance_goal_state.yml
+
+```
+
+  vars:
+    region: us-west-2
+
+    state: stopped #{started|stopped|restarted|rebooted}
+    instance_tags_Name: EVORI
+#or
+#    instance_tags_Type: webserver
+
+  vars_files:
+    - aws/aws_keys.yml
+
+```
