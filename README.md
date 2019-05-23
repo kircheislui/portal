@@ -54,7 +54,7 @@ variables
 
 ```
 
-# variable for aws_instance_goal_state.yml
+# variable for aws_instance_facts.yml
 
 ```
 
