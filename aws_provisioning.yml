@@ -94,17 +94,15 @@
   become: yes
   gather_facts: no
   vars:  
-    install_services:
-      - test1
-      - test2
-      - apache
+    role_name:
+      - os_RHEL7_CIS
   tasks:
       
     - block:
         - include_role:
             name: "{{item}}"
           with_items:
-            - "{{install_services}}"
+            - "{{role_name}}"
 
         - include_role:
             name: success_notification

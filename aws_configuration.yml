@@ -96,9 +96,8 @@
   become: yes
   gather_facts: yes
   vars:
-    install_services:
-      - hostname
-      - apache
+    role_name:
+      - os_RHEL7_CIS
     
   tasks:
       
@@ -107,7 +106,7 @@
         - include_role:
             name: "{{ item }}"
           with_items:
-            - "{{ install_services }}"
+            - "{{ role_name }}"
 
         - include_role:
             name: success_notification
