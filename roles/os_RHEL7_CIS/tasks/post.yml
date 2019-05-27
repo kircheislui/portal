@@ -1,0 +1,19 @@
+---
+# Post tasks
+
+- name: Perform YUM package cleanup
+  command: yum -y autoremove
+  changed_when: no
+  ignore_errors: yes
+  tags:
+      - skip_ansible_lint
+
+- name: Ensure folder exists
+  file:
+    path: "{{log_folder}}/{{change_id}}"
+    state: directory
+
+- name: General Report
+  template:
+    src: CIS_report.j2
+    dest: /{{log_folder}}/{{change_id}}/{{ansible_hostname}}_CIS_report_{{ansible_date_time.iso8601}}

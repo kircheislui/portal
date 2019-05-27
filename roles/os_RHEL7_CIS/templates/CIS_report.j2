@@ -1,0 +1,99 @@
+{% if (tmp_mounted|default(omit)).stdout|default(omit) == "" %}
+1.1.2,separate partition not exists for /tmp
+1.1.3,separate partition not exists for /tmp
+1.1.4,separate partition not exists for /tmp
+1.1.5,separate partition not exists for /tmp
+{% endif %}
+{% if (var_mounted|default(omit)).stdout|default(omit) == "" %}
+1.1.6,separate partition not exists for /var
+{% endif %}
+{% if (var_tmp_mounted|default(omit)).stdout|default(omit) == "" %}
+1.1.7,separate partition not exists for /var/tmp
+1.1.8,separate partition not exists for /var/tmp
+1.1.9,separate partition not exists for /var/tmp
+1.1.10,separate partition not exists for /var/tmp
+{% endif %}
+{% if (var_log_mounted|default(omit)).stdout|default(omit) == "" %}
+1.1.11,separate partition not exists for /var/log
+{% endif %}
+{% if (var_log_audit_mounted|default(omit)).stdout|default(omit) == "" %}
+1.1.12,separate partition not exists for /var/log/audit
+{% endif %}
+{% if (home_mounted|default(omit)).stdout|default(omit) == "" %}
+1.1.13,separate partition not exists for /home
+1.1.14,separate partition not exists for /home
+{% endif %}
+{% if (section_1_1_21|default({})).stdout|default('') != "" %}
+1.1.21,Ensure sticky bit is set on all world-writable directories
+{{section_1_1_21.stdout}}
+{% endif %}
+{% if "There are no enabled repos" in (yum_configured|default(omit)).stderr|default(omit) %}
+1.2.1,package manager repositories are not configured
+{% endif %}
+{% if "This system is not yet registered." in (subscription_manager_identity|default(omit)).stderr|default(omit) %}
+1.2.4,Red Hat Network or Subscription Manager connection is not configured
+{% endif %}
+{% if (dmesg_1_5_2|default(omit)).stdout|default(omit) == "" %}
+1.5.2,XD/NX support is not enabled
+{% endif %}
+{% if (section_1_6_1_6|default({})).stdout|default('') != "" %}
+1.6.1.6,unconfined daemons existed
+{% endif %}
+{% if (section_6_1_1|default({})).stdout|default('') != "" %}
+6.1.1,discrepancies found. Review the output below and rerun the audit until output is clean or risk is mitigated or accepted
+{{section_6_1_1.stdout}}
+{% endif %}
+{% if (section_6_1_10|default({})).stdout|default('') != "" %}
+6.1.10,world writable files exist
+{{section_6_1_10.stdout}}
+{% endif %}
+{% if (section_6_1_11|default({})).stdout|default('') != "" %}
+6.1.11,unowned files or directories exist
+{% endif %}
+{% if (section_6_1_12|default({})).stdout|default('') != "" %}
+6.1.12,ungrouped files or directories exist
+{% endif %}
+{% if (section_6_1_13|default({})).stdout|default('') != "" %}
+6.1.13,Ensure that no rogue SUID programs have been introduced into the system. Review the files returned below:
+{{section_6_1_13.stdout}}
+{% endif %}
+{% if (section_6_1_14|default({})).stdout|default('') != "" %}
+6.1.14,Ensure that no rogue SGID programs have been introduced into the system. Review the files returned below:
+{{section_6_1_14.stdout}}
+{% endif %}
+{% if (section_6_2_6|default({})).stdout|default('') != "" %}
+6.2.6, Ensure root PATH Integrity. Correct or justify any items discovered in the output below:
+{{section_6_2_6.stdout}}
+{% endif %}
+{% if (section_6_2_8|default({})).stdout|default('') != "" %}
+6.2.8,Ensure users' home directories permissions are 750 or more restrictive. 
+{{section_6_2_8.stdout}}
+{% endif %}
+{% if (section_6_2_10|default({})).stdout|default('') != "" %}
+6.2.10,Ensure users' dot files are not group or world writable
+{{section_6_2_10.stdout}}
+{% endif %}
+{% if (section_6_2_13|default({})).stdout|default('') != "" %}
+6.2.13,Ensure users' .netrc Files are not group or world accessible
+{{section_6_2_13.stdout}}
+{% endif %}
+{% if (section_6_2_15|default({})).stdout|default('') != "" %}
+6.2.15,Ensure all groups in /etc/passwd exist in /etc/group
+{{section_6_2_15.stdout}}
+{% endif %}
+{% if (section_6_2_16|default({})).stdout|default('') != "" %}
+6.2.16,Ensure no duplicate UIDs exist
+{{section_6_2_16.stdout}}
+{% endif %}
+{% if (section_6_2_17|default({})).stdout|default('') != "" %}
+6.2.17,Ensure no duplicate GIDs exist
+{{section_6_2_17.stdout}}
+{% endif %}
+{% if (section_6_2_18|default({})).stdout|default('') != "" %}
+6.2.18,Ensure no duplicate user names exist
+{{section_6_2_18.stdout}}
+{% endif %}
+{% if (section_6_2_19|default({})).stdout|default('') != "" %}
+6.2.19,Ensure no duplicate group names exist
+{{section_6_2_19.stdout}}
+{% endif %}

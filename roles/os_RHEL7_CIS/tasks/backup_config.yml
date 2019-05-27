@@ -1,0 +1,109 @@
+- name: Create config backup directory
+  file:
+    path: /tmp/RHEL7_CIS_backup_{{ansible_date_time.date}}
+    state: directory
+    mode: 0755
+    owner: syssupp
+    group: syslog
+
+- name: Check config files
+  stat:
+    path: "{{item}}"
+  with_items:
+    - "{{backup_config}}"
+  register: backup_config_results
+
+- name: Create directories
+  file:
+    path: /tmp/RHEL7_CIS_backup_{{ansible_date_time.date}}/{{item.item|dirname}}
+    state: directory
+    recurse: yes
+    mode: 0755
+    owner: syssupp
+    group: syslog
+  with_items:
+    - "{{backup_config_results.results}}"
+  when: item.stat.exists == true
+
+- name: Backup config files
+  copy:
+    src: "{{item.item}}"
+    dest: /tmp/RHEL7_CIS_backup_{{ansible_date_time.date}}/{{item.item|dirname}}
+#    mode: preserve
+    remote_src: yes
+    mode: 0644
+    owner: syssupp
+    group: syslog
+  with_items:
+    - "{{backup_config_results.results}}"
+  when: item.stat.exists == true
+
+- name: Check config files in folders
+  find:
+    paths: "{{item}}"
+  with_items:
+    - "{{backup_folder_config}}"
+  register: backup_folder_config_results
+
+- name: Ensure folder exists
+  file:
+    path: /tmp/RHEL7_CIS_backup_{{ansible_date_time.date}}/{{item.0.item}}
+    state: directory
+    recurse: yes
+    owner: syssupp
+    group: syslog
+    mode: 0755
+  with_subelements:
+    - "{{backup_folder_config_results.results}}"
+    - files
+  when: item.1 is defined
+
+- name: Backup config files
+  copy:
+    src: "{{item.1.path}}"
+    dest: /tmp/RHEL7_CIS_backup_{{ansible_date_time.date}}/{{item.0.item}}
+#    mode: preserve
+    owner: syssupp
+    group: syslog
+    mode: 0644
+    remote_src: yes
+  with_subelements:
+    - "{{backup_folder_config_results.results}}"
+    - files
+  when: item.1 is defined
+
+- name: tar the backup folder
+  archive:
+    path: /tmp/RHEL7_CIS_backup_{{ansible_date_time.date}}
+    dest: /tmp/RHEL7_CIS_backup_{{ansible_date_time.date}}.tgz
+    owner: syssupp
+    group: syslog
+    mode: 0644
+
+- name: Remove the backup folder
+  file:
+    path: /tmp/RHEL7_CIS_backup_{{ansible_date_time.date}}
+    state: absent
+
+- name: Create symbolic link for the latest backup file
+  file:
+    src: /tmp/RHEL7_CIS_backup_{{ansible_date_time.date}}.tgz
+    dest: /tmp/RHEL7_CIS_backup-latest.tgz
+    state: link
+    owner: syssupp
+    group: syslog
+    force: yes
+
+- name: Find tgz files older than 7 days
+  find:
+    paths: /tmp
+    age: 7d
+    patterns: 'RHEL7_CIS_backup_*.tgz'
+  register: find_backup
+
+- name: Remove old tgz files
+  file:
+    path: "{{item.path}}"
+    state: absent
+  with_items:
+    - "{{find_backup.files}}"

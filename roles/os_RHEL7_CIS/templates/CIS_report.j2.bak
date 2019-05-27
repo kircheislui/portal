@@ -1,0 +1,37 @@
+tf (dmesg_1_5_2|default(omit)).stdout|default(omit) == "" %}
+1.5.2,failed,XD/NX support is not enabled
+{% endif %}ask_number,results,details
+{% if (tmp_mounted|default(omit)).stdout|default(omit) == "" %}
+1.1.2,failed,separate partition not exists for /tmp
+1.1.3,failed,separate partition not exists for /tmp
+1.1.4,failed,separate partition not exists for /tmp
+1.1.5,failed,separate partition not exists for /tmp
+{% endif %}
+{% if (var_mounted|default(omit)).stdout|default(omit) == "" %}
+1.1.6,failed,separate partition not exists for /var
+{% endif %}
+{% if (var_tmp_mounted|default(omit)).stdout|default(omit) == "" %}
+1.1.7,failed,separate partition not exists for /var/tmp
+1.1.8,failed,separate partition not exists for /var/tmp
+1.1.9,failed,separate partition not exists for /var/tmp
+1.1.10,failed,separate partition not exists for /var/tmp
+{% endif %}
+{% if (var_log_mounted|default(omit)).stdout|default(omit) == "" %}
+1.1.11,failed,separate partition not exists for /var/log
+{% endif %}
+{% if (var_log_audit_mounted|default(omit)).stdout|default(omit) == "" %}
+1.1.12,failed,separate partition not exists for /var/log/audit
+{% endif %}
+{% if (home_mounted|default(omit)).stdout|default(omit) == "" %}
+1.1.13,failed,separate partition not exists for /home
+1.1.14,failed,separate partition not exists for /home
+{% endif %}
+{% if "There are no enabled repos" in (yum_configured|default(omit)).stderr|default(omit) %}
+1.2.1,failed,package manager repositories are not configured
+{% endif %}
+{% if "This system is not yet registered." in (subscription_manager_identity|default(omit)).stderr|default(omit) %}
+1.2.4,failed,Red Hat Network or Subscription Manager connection is not configured
+{% endif %}
+{% if (dmesg_1_5_2|default(omit)).stdout|default(omit) == "" %}
+1.5.2,failed,XD/NX support is not enabled
+{% endif %}
