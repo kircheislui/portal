@@ -92,7 +92,7 @@
 - hosts: "{{group_name}}"
   remote_user: ec2-user
   become: yes
-  gather_facts: no
+  gather_facts: yes
   vars:  
     role_name:
       - os_RHEL7_CIS
