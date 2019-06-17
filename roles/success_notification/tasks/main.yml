@@ -1,6 +1,6 @@
 - name: Send email notification
   uri:
-    url: http://dpcphklocp01/cloud/portal/cf_result.jsp?requestID={{Provision_Request_ID}}&status={{status}}&ip={{ip_add}}&hostname={{app_code}}&login_name=admin&login_pw={{gen_password}}
+    url: http://dpcphklocp01/cloud/portal/cf_result.jsp?requestID={{Provision_Request_ID}}&status=success&ip={{ip_add}}&hostname={{app_code}}&login_name=admin&login_pw={{gen_password}}
   register: check_uri
   become: no
   delegate_to: localhost
