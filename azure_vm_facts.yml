@@ -2,9 +2,6 @@
 - hosts: localhost
   connection: local
   gather_facts: no
-#  vars:
-  vars_files:
-    - azure/azure_keys.yml
 
   tasks:
     - block:
