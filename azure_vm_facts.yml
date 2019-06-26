@@ -1,0 +1,24 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: no
+#  vars:
+  vars_files:
+    - azure/azure_keys.yml
+
+  tasks:
+    - block:
+
+      - name: Get facts for all virtual machines
+        azure_rm_virtualmachine_facts:
+        register: result
+
+      - debug:
+          var: result
+
+      - name: Get facts for all virtual machines
+        azure_rm_publicipaddress_facts:
+        register: result
+
+      - debug:
+          var: result
