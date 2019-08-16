@@ -81,3 +81,19 @@ variables
     - aws/aws_keys.yml
 
 ```
+
+extra:
+{
+ "A1-Provision_Request_ID": "Request_ID",
+ "A2-Owner": "Owner",
+ "A3-Requested_By": "Requested_By",
+ "A4-Catalog": "Application Type",
+ "A5-Hostname": "Hostname",
+ "B1-Department": "Department",
+ "B2-Network": "Network",
+ "B3-Datastore": "Datastore",
+ "B4-Cluster": "Cluster",
+ "C1-CPU": "CPU",
+ "C2-Memory": "Memory",
+ "C3-Disk_Size": "Disk Size"
+}
